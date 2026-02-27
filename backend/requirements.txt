@@ -1,0 +1,21 @@
+fastapi>=0.115.0
+uvicorn[standard]>=0.34.0
+python-dotenv>=1.1.0
+pydantic>=2.10.0
+pydantic-settings>=2.7.0
+# chromadb Python client removed — we talk to ChromaDB via its REST API
+# (avoids pydantic-v1 incompatibility on Python 3.14+)
+openai>=1.60.0
+httpx>=0.28.0
+
+# LangChain + LangGraph
+langchain>=0.3.14
+langchain-core>=0.3.30
+langchain-openai>=0.3.3
+langgraph>=0.2.70
+
+# Optional providers (install as needed)
+# langchain-anthropic>=0.3.4
+# langchain-google-genai>=2.0.8
+
+sse-starlette>=2.2.1
