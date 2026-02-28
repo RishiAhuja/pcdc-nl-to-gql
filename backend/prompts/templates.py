@@ -47,6 +47,11 @@ Your job is to convert natural language cohort descriptions into valid Guppy Gra
 
 
 QUERY_GEN_HUMAN = """\
+## RECENT CONVERSATION HISTORY
+(Use this to understand follow-up queries, pronoun references, and changes from prior requests)
+
+{conversation_history}
+
 ## RELEVANT FIELDS (from the PCDC schema)
 
 {schema_context}
@@ -55,13 +60,14 @@ QUERY_GEN_HUMAN = """\
 
 {example_context}
 
-## USER QUERY
+## CURRENT USER QUERY
 
 "{user_query}"
 
 ## OUTPUT
 
 Generate the Guppy-compatible GraphQL filter JSON for the query above.
+If this is a follow-up (e.g. "now filter for males instead"), modify the previous filter accordingly.
 Output ONLY the JSON object, nothing else."""
 
 

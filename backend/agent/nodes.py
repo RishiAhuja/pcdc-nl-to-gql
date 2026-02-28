@@ -51,6 +51,36 @@ def _get_example_retriever() -> ExampleRetriever:
     return _example_retriever
 
 
+def _build_conversation_history(messages: list[dict], max_turns: int = 4) -> str:
+    """
+    Format the last `max_turns` user+assistant pairs from the conversation
+    history into a plain-text string for injection into the generation prompt.
+
+    Strips internal keys like _pending_context that are never visible to the
+    LLM.  Returns "(No prior conversation)" if messages is empty so the
+    prompt section always has meaningful content.
+
+    Example output:
+        USER: Show me AML females under 5
+        ASSISTANT: {"AND": [{"IN": {"sex": ["Female"]}}, ...]}
+        USER: Now filter for males instead
+    """
+    if not messages:
+        return "(No prior conversation)"
+
+    # Take the last max_turns * 2 messages (each turn = 1 user + 1 assistant)
+    recent = messages[-(max_turns * 2):]
+
+    lines = []
+    for msg in recent:
+        role = msg.get("role", "user").upper()
+        content = msg.get("content", "")
+        if content:
+            lines.append(f"{role}: {content}")
+
+    return "\n".join(lines) if lines else "(No prior conversation)"
+
+
 # ═══════════════════════════════════════════════════════════════════
 # Node 1: Intent classification
 # ═══════════════════════════════════════════════════════════════════
@@ -181,6 +211,7 @@ def generate_filter(state: AgentState) -> dict[str, Any]:
 
     schema_context = state.get("schema_context", "")
     example_context = state.get("example_context", "")
+    conversation_history = _build_conversation_history(state.get("messages", []))
 
     llm_json = get_llm_json(streaming=False)
 
@@ -188,6 +219,7 @@ def generate_filter(state: AgentState) -> dict[str, Any]:
         schema_context=schema_context,
         example_context=example_context,
         user_query=query,
+        conversation_history=conversation_history,
     )
 
     response = llm_json.invoke([
