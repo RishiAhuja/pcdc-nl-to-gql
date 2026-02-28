@@ -9,6 +9,10 @@ backend/**/__pycache__/
 
 # Build
 frontend/dist/
+frontend/tsconfig.tsbuildinfo
+
+# Evaluation artefacts
+backend/results*.json
 
 # IDE
 .vscode/
