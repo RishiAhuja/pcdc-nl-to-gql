@@ -1,14 +1,34 @@
 import { useState } from "react";
-import { Check, Copy, AlertTriangle, CheckCircle } from "lucide-react";
+import { Check, Copy, AlertTriangle, CheckCircle, Code2 } from "lucide-react";
 import type { FilterResult } from "../types";
 
 interface Props {
   filter: FilterResult;
 }
 
+// Simple JSON syntax highlighter — returns an array of <span> elements
+function highlightJson(json: string): React.ReactNode[] {
+  const nodes: React.ReactNode[] = [];
+  // Matches: string keys (with colon), string values, booleans, nulls, numbers, punctuation
+  const re = /("(?:\\u[\da-fA-F]{4}|\\[^u]|[^\\"])*"\s*:)|("(?:\\u[\da-fA-F]{4}|\\[^u]|[^\\"])*")|(\btrue\b|\bfalse\b)|(\bnull\b)|(-?\d+(?:\.\d*)?(?:[eE][+-]?\d+)?)|([{}[\],])/g;
+  let last = 0;
+  let m: RegExpExecArray | null;
+  while ((m = re.exec(json)) !== null) {
+    if (m.index > last) nodes.push(json.slice(last, m.index));
+    if (m[1]) nodes.push(<span key={m.index} className="json-key">{m[1]}</span>);
+    else if (m[2]) nodes.push(<span key={m.index} className="json-string">{m[2]}</span>);
+    else if (m[3]) nodes.push(<span key={m.index} className="json-bool">{m[3]}</span>);
+    else if (m[4]) nodes.push(<span key={m.index} className="json-null">{m[4]}</span>);
+    else if (m[5]) nodes.push(<span key={m.index} className="json-number">{m[5]}</span>);
+    else nodes.push(<span key={m.index} className="json-punct">{m[0]}</span>);
+    last = re.lastIndex;
+  }
+  if (last < json.length) nodes.push(json.slice(last));
+  return nodes;
+}
+
 export default function FilterDisplay({ filter }: Props) {
   const [copied, setCopied] = useState(false);
-
   const jsonStr = JSON.stringify(filter.filter, null, 2);
 
   const handleCopy = async () => {
@@ -18,67 +38,78 @@ export default function FilterDisplay({ filter }: Props) {
   };
 
   return (
-    <div className="mt-3 rounded-lg border border-gray-200 overflow-hidden">
+    <div className="mt-3 rounded-xl border overflow-hidden shadow-card" style={{ borderColor: filter.isValid ? "#d1d5db" : "#e5e7eb" }}>
       {/* Header bar */}
-      <div className="flex items-center justify-between px-3 py-2 bg-gray-50 border-b border-gray-200">
+      <div
+        className="flex items-center justify-between px-3.5 py-2"
+        style={{
+          background: filter.isValid
+            ? "#f9fafb"
+            : "#f9fafb",
+        }}
+      >
         <div className="flex items-center gap-2">
           {filter.isValid ? (
-            <CheckCircle className="w-4 h-4 text-green-600" />
+            <CheckCircle className="w-3.5 h-3.5 text-slate-700" />
           ) : (
-            <AlertTriangle className="w-4 h-4 text-amber-500" />
+            <AlertTriangle className="w-3.5 h-3.5 text-slate-700" />
           )}
-          <span
-            className={`text-xs font-medium ${
-              filter.isValid ? "text-green-700" : "text-amber-600"
-            }`}
-          >
+          <span className={`text-xs font-semibold ${
+              filter.isValid ? "text-slate-700" : "text-slate-700"
+            }`}>
             {filter.isValid ? "Valid Filter" : "Filter (with warnings)"}
           </span>
+          <Code2 className="w-3 h-3 text-gray-400" />
+          <span className="text-[10px] text-gray-400">
+            Guppy GraphQL
+          </span>
+        </div>
+        <div className="flex items-center gap-2">
           {filter.fieldsUsed.length > 0 && (
-            <span className="text-xs text-gray-400 ml-2">
-              {filter.fieldsUsed.length} field
-              {filter.fieldsUsed.length !== 1 ? "s" : ""}
+            <span className="text-[10px] text-gray-400">
+              {filter.fieldsUsed.length} field{filter.fieldsUsed.length !== 1 ? "s" : ""}
             </span>
           )}
+          <button
+            onClick={handleCopy}
+            className={`flex items-center gap-1 text-xs transition-colors px-2 py-1 rounded-md ${
+              copied
+                ? "text-slate-700 bg-slate-200"
+                : "text-gray-500 hover:text-slate-900 hover:bg-white"
+            }`}
+          >
+            {copied ? (
+              <><Check className="w-3 h-3" /> Copied!</>
+            ) : (
+              <><Copy className="w-3 h-3" /> Copy JSON</>
+            )}
+          </button>
         </div>
-        <button
-          onClick={handleCopy}
-          className="flex items-center gap-1 text-xs text-gray-500 hover:text-pcdc-blue transition-colors"
-        >
-          {copied ? (
-            <>
-              <Check className="w-3.5 h-3.5" />
-              Copied
-            </>
-          ) : (
-            <>
-              <Copy className="w-3.5 h-3.5" />
-              Copy
-            </>
-          )}
-        </button>
       </div>
 
-      {/* JSON body */}
-      <pre className="json-display p-3 text-xs leading-relaxed overflow-x-auto bg-gray-900 text-green-300 max-h-80 overflow-y-auto">
-        {jsonStr}
+      {/* Syntax-highlighted JSON body */}
+       <pre className="json-display px-4 py-3.5 overflow-x-auto max-h-72 overflow-y-auto"
+         style={{ background: "#111827" }}>
+        {highlightJson(jsonStr)}
       </pre>
 
-      {/* Errors / warnings */}
+      {/* Errors */}
       {filter.errors.length > 0 && (
-        <div className="px-3 py-2 bg-red-50 border-t border-red-200">
+        <div className="px-4 py-2.5 bg-red-50 border-t border-red-100">
           {filter.errors.map((err, i) => (
-            <p key={i} className="text-xs text-red-600">
-              ⛔ {err}
+            <p key={i} className="text-xs text-red-700 flex items-start gap-1.5 mb-0.5">
+              <span className="mt-0.5 flex-shrink-0">•</span>
+              <span>{err}</span>
             </p>
           ))}
         </div>
       )}
       {filter.warnings.length > 0 && (
-        <div className="px-3 py-2 bg-amber-50 border-t border-amber-200">
+        <div className="px-4 py-2.5 bg-amber-50 border-t border-amber-100">
           {filter.warnings.map((w, i) => (
-            <p key={i} className="text-xs text-amber-600">
-              ⚠️ {w}
+            <p key={i} className="text-xs text-amber-700 flex items-start gap-1.5 mb-0.5">
+              <span className="mt-0.5 flex-shrink-0">•</span>
+              <span>{w}</span>
             </p>
           ))}
         </div>
@@ -86,11 +117,12 @@ export default function FilterDisplay({ filter }: Props) {
 
       {/* Fields used chips */}
       {filter.fieldsUsed.length > 0 && (
-        <div className="px-3 py-2 bg-gray-50 border-t border-gray-200 flex flex-wrap gap-1">
+        <div className="px-3.5 py-2.5 bg-white border-t border-gray-100 flex flex-wrap gap-1.5">
           {filter.fieldsUsed.map((f) => (
             <span
               key={f}
-              className="px-2 py-0.5 text-[10px] bg-pcdc-blue/10 text-pcdc-blue rounded-full font-medium"
+              className="px-2.5 py-0.5 text-[10px] font-mono font-medium rounded-full"
+              style={{ background: "#f1f5f9", color: "#334155" }}
             >
               {f}
             </span>

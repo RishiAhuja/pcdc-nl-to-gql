@@ -24,9 +24,16 @@ export default function MessageBubble({
     >
       {/* Avatar */}
       <div
-        className={`flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center ${
-          isUser ? "bg-pcdc-blue" : "bg-pcdc-teal"
+        className={`flex-shrink-0 w-8 h-8 rounded-lg flex items-center justify-center shadow-message ring-1 ${
+          isUser
+            ? "ring-slate-300"
+            : "ring-slate-200"
         }`}
+        style={{
+          background: isUser
+            ? "#0f172a"
+            : "#1f2937",
+        }}
       >
         {isUser ? (
           <User className="w-4 h-4 text-white" />
@@ -36,41 +43,47 @@ export default function MessageBubble({
       </div>
 
       {/* Content */}
-      <div
-        className={`max-w-[75%] ${isUser ? "text-right" : "text-left"}`}
-      >
+      <div className={`max-w-[78%] ${ isUser ? "items-end" : "items-start" } flex flex-col`}>
+        {/* Role label */}
+        <span className={`text-[10px] font-medium mb-1 px-1 ${
+          isUser ? "text-right text-slate-500" : "text-slate-500"
+        }`}>
+          {isUser ? "Researcher" : "PCDC Assistant"}
+        </span>
+
         <div
-          className={`inline-block px-4 py-2.5 rounded-2xl ${
+          className={`px-4 py-3 rounded-2xl text-sm leading-relaxed ${
             isUser
-              ? "bg-pcdc-blue text-white rounded-br-md"
-              : "bg-white border border-gray-200 text-gray-800 rounded-bl-md shadow-sm"
+              ? "text-white rounded-tr-sm shadow-message"
+              : "bg-white border border-gray-200 text-gray-800 rounded-tl-sm shadow-message"
           }`}
+          style={isUser ? {
+            background: "#0f172a",
+          } : { borderLeft: "3px solid #cbd5e1" }}
         >
           {/* Status indicator */}
           {message.isLoading && message.statusText && (
-            <div className="text-xs text-pcdc-teal mb-1.5 flex items-center gap-1.5">
-              <span className="thinking-dot" />
-              <span className="thinking-dot" style={{ animationDelay: "0.2s" }} />
-              <span className="thinking-dot" style={{ animationDelay: "0.4s" }} />
-              <span className="ml-1 italic">{message.statusText}</span>
+            <div className="flex items-center gap-2 mb-2">
+              <span className="thinking-dot text-slate-600" />
+              <span className="thinking-dot text-slate-600" />
+              <span className="thinking-dot text-slate-600" />
+              <span className="ml-1 text-xs shimmer-text font-medium">{message.statusText}</span>
             </div>
           )}
 
           {/* Message text */}
           {message.content ? (
-            <div className="text-sm leading-relaxed whitespace-pre-wrap">
-              {message.content}
-            </div>
+            <div className="whitespace-pre-wrap">{message.content}</div>
           ) : message.isLoading ? (
-            <div className="flex items-center gap-1.5 py-1">
+            <div className="flex items-center gap-1.5 py-0.5 text-slate-600">
               <span className="thinking-dot" />
-              <span className="thinking-dot" style={{ animationDelay: "0.2s" }} />
-              <span className="thinking-dot" style={{ animationDelay: "0.4s" }} />
+              <span className="thinking-dot" />
+              <span className="thinking-dot" />
             </div>
           ) : null}
         </div>
 
-        {/* Filter result (rendered outside bubble for full width) */}
+        {/* Filter result */}
         {message.filter && <FilterDisplay filter={message.filter} />}
 
         {/* Clarification options */}

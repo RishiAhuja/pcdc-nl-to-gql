@@ -1,7 +1,7 @@
 import { useRef, useEffect } from "react";
 import type { ChatMessage, ClarificationOption } from "../types";
 import MessageBubble from "./MessageBubble";
-import { Microscope } from "lucide-react";
+import { Microscope, Search, ShieldCheck, History } from "lucide-react";
 
 interface Props {
   messages: ChatMessage[];
@@ -10,10 +10,31 @@ interface Props {
 }
 
 const SUGGESTIONS = [
-  "Show me all AML patients under 5",
-  "Find relapsed neuroblastoma cases",
-  "Patients with WBC count above 50",
-  "Male patients with Down syndrome",
+  { text: "Show all AML patients under age 5" },
+  { text: "Find relapsed neuroblastoma cases" },
+  { text: "Patients with WBC count above 50" },
+  { text: "Female patients with Down syndrome" },
+];
+
+const FEATURES = [
+  {
+    icon: Search,
+    color: "bg-slate-50 text-slate-700 border-slate-200",
+    title: "Smart Retrieval",
+    desc: "Finds relevant schema fields automatically using semantic search",
+  },
+  {
+    icon: ShieldCheck,
+    color: "bg-slate-50 text-slate-700 border-slate-200",
+    title: "Validated Output",
+    desc: "Every filter is checked against the real PCDC schema before delivery",
+  },
+  {
+    icon: History,
+    color: "bg-slate-50 text-slate-700 border-slate-200",
+    title: "Context-Aware",
+    desc: "Follow-up queries build on prior conversation turns automatically",
+  },
 ];
 
 export default function ChatWindow({
@@ -29,40 +50,64 @@ export default function ChatWindow({
 
   if (messages.length === 0) {
     return (
-      <div className="flex-1 flex flex-col items-center justify-center px-6 text-center">
-        <div className="w-16 h-16 rounded-full bg-pcdc-teal/10 flex items-center justify-center mb-4">
-          <Microscope className="w-8 h-8 text-pcdc-teal" />
-        </div>
-        <h2 className="text-xl font-semibold text-gray-800 mb-2">
-          Ask me about cohort data
-        </h2>
-        <p className="text-sm text-gray-500 max-w-md mb-6">
-          Describe the patient cohort you&#39;re looking for in plain English
-          and I&#39;ll generate a Guppy-compatible GraphQL filter for you.
-        </p>
-        <div className="flex flex-wrap justify-center gap-2">
-          {SUGGESTIONS.map((s) => (
-            <button
-              key={s}
-              className="px-3 py-1.5 text-xs rounded-full border border-gray-300 text-gray-600
-                         hover:border-pcdc-teal hover:text-pcdc-teal transition-colors"
-              // We bubble this up via a custom event since we don't have sendMessage here
-              onClick={() => {
-                window.dispatchEvent(
-                  new CustomEvent("chatbot:suggest", { detail: s })
-                );
-              }}
-            >
-              {s}
-            </button>
-          ))}
+      <div className="flex-1 overflow-y-auto">
+        <div className="max-w-2xl mx-auto px-6 py-10 flex flex-col items-center">
+          <div className="w-14 h-14 rounded-xl flex items-center justify-center mb-5 bg-slate-900 shadow-card">
+            <Microscope className="w-8 h-8 text-white" />
+          </div>
+          <h2 className="text-2xl font-bold text-gray-800 mb-2 text-center tracking-tight">
+            Describe the cohort you need
+          </h2>
+          <p className="text-sm text-gray-500 text-center max-w-sm mb-8 leading-relaxed">
+            Describe patients in plain English. I'll generate a Guppy-compatible
+            GraphQL filter you can use directly in the PCDC portal.
+          </p>
+
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-3 w-full mb-8">
+            {FEATURES.map((f) => (
+              <div
+                key={f.title}
+                className={`feature-card rounded-xl border p-4 bg-white shadow-message ${f.color.split(" ").slice(2).join(" ")}`}
+              >
+                <div className={`w-8 h-8 rounded-lg flex items-center justify-center mb-2.5 ${f.color.split(" ").slice(0,2).join(" ")}`}>
+                  <f.icon className="w-4 h-4" />
+                </div>
+                <p className="text-xs font-semibold text-gray-700 mb-1">{f.title}</p>
+                <p className="text-[11px] text-gray-400 leading-relaxed">{f.desc}</p>
+              </div>
+            ))}
+          </div>
+
+          <div className="w-full">
+            <div className="mb-3">
+              <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">Example prompts</span>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              {SUGGESTIONS.map((s) => (
+                <button
+                  key={s.text}
+                  className="group flex items-center px-4 py-3 rounded-lg bg-white border border-gray-200
+                             hover:border-slate-400 hover:bg-slate-50 transition-all text-left shadow-message"
+                  onClick={() => {
+                    window.dispatchEvent(
+                      new CustomEvent("chatbot:suggest", { detail: s.text })
+                    );
+                  }}
+                >
+                  <span className="text-sm text-gray-600 group-hover:text-slate-900 transition-colors leading-tight">
+                    {s.text}
+                  </span>
+                </button>
+              ))}
+            </div>
+          </div>
         </div>
       </div>
     );
   }
 
   return (
-    <div className="flex-1 overflow-y-auto px-4 py-4 space-y-4 custom-scrollbar">
+    <div className="flex-1 overflow-y-auto px-4 py-5 space-y-5 custom-scrollbar">
       {messages.map((msg) => (
         <MessageBubble
           key={msg.id}

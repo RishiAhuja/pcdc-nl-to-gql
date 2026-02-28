@@ -23,7 +23,6 @@ export default function InputBar({ onSend, onCancel, isLoading }: Props) {
     return () => window.removeEventListener("chatbot:suggest", handler);
   }, [onSend]);
 
-  // Auto-focus
   useEffect(() => {
     inputRef.current?.focus();
   }, [isLoading]);
@@ -41,56 +40,66 @@ export default function InputBar({ onSend, onCancel, isLoading }: Props) {
     }
   };
 
+  const canSend = text.trim().length > 0 && !isLoading;
+
   return (
-    <div className="border-t border-gray-200 bg-white px-4 py-3">
-      <div className="max-w-3xl mx-auto flex items-end gap-2">
-        <textarea
-          ref={inputRef}
-          value={text}
-          onChange={(e) => setText(e.target.value)}
-          onKeyDown={handleKeyDown}
-          placeholder="Describe the patient cohort you're looking for..."
-          disabled={isLoading}
-          rows={1}
-          className="flex-1 resize-none rounded-xl border border-gray-300 px-4 py-2.5 text-sm
-                     focus:outline-none focus:border-pcdc-teal focus:ring-1 focus:ring-pcdc-teal/30
-                     disabled:bg-gray-50 disabled:text-gray-400
-                     placeholder:text-gray-400 max-h-32"
-          style={{
-            height: "auto",
-            minHeight: "42px",
-          }}
-          onInput={(e) => {
-            const target = e.target as HTMLTextAreaElement;
-            target.style.height = "auto";
-            target.style.height = Math.min(target.scrollHeight, 128) + "px";
-          }}
-        />
-        {isLoading ? (
-          <button
-            onClick={onCancel}
-            className="flex-shrink-0 w-10 h-10 rounded-xl bg-red-500 text-white
-                       flex items-center justify-center hover:bg-red-600 transition-colors"
-            title="Cancel"
-          >
-            <Square className="w-4 h-4" />
-          </button>
-        ) : (
-          <button
-            onClick={handleSubmit}
-            disabled={!text.trim()}
-            className="flex-shrink-0 w-10 h-10 rounded-xl bg-pcdc-teal text-white
-                       flex items-center justify-center hover:bg-pcdc-teal/90 transition-colors
-                       disabled:opacity-40 disabled:cursor-not-allowed"
-            title="Send"
-          >
-            <Send className="w-4 h-4" />
-          </button>
-        )}
+    <div className="px-4 py-3 bg-white border-t border-slate-200">
+      <div className="max-w-3xl mx-auto">
+        <div
+          className={`flex items-end gap-2 rounded-2xl px-4 py-2.5 transition-all ${
+            isLoading
+              ? "bg-gray-50 border border-gray-200"
+              : "bg-white border border-gray-300 hover:border-slate-400 focus-within:border-slate-500"
+          }`}
+          style={{ boxShadow: "0 1px 3px rgba(0,0,0,0.06)" }}
+        >
+          <textarea
+            ref={inputRef}
+            value={text}
+            onChange={(e) => setText(e.target.value)}
+            onKeyDown={handleKeyDown}
+            placeholder="Describe the patient cohort you're looking for..."
+            disabled={isLoading}
+            rows={1}
+            className="flex-1 resize-none bg-transparent text-sm text-gray-700
+                       focus:outline-none disabled:text-gray-400
+                       placeholder:text-gray-400 max-h-32 leading-relaxed"
+            style={{ minHeight: "28px" }}
+            onInput={(e) => {
+              const t = e.target as HTMLTextAreaElement;
+              t.style.height = "auto";
+              t.style.height = Math.min(t.scrollHeight, 128) + "px";
+            }}
+          />
+
+          {isLoading ? (
+            <button
+              onClick={onCancel}
+              className="flex-shrink-0 w-8 h-8 rounded-md bg-red-600 text-white
+                         flex items-center justify-center hover:bg-red-700 transition-colors"
+              title="Cancel"
+            >
+              <Square className="w-3.5 h-3.5" />
+            </button>
+          ) : (
+            <button
+              onClick={handleSubmit}
+              disabled={!canSend}
+              title="Send"
+              className={`flex-shrink-0 w-8 h-8 rounded-xl flex items-center justify-center transition-all ${
+                canSend
+                  ? "text-white bg-slate-900 hover:bg-slate-800"
+                  : "bg-gray-100 text-gray-300 cursor-not-allowed"
+              }`}
+            >
+              <Send className="w-3.5 h-3.5" />
+            </button>
+          )}
+        </div>
+        <p className="text-center text-[10px] text-gray-400 mt-1.5">
+          Press Enter to send · Shift+Enter for newline
+        </p>
       </div>
-      <p className="text-[10px] text-gray-400 text-center mt-1.5">
-        Press Enter to send · Shift+Enter for new line
-      </p>
     </div>
   );
 }

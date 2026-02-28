@@ -14,7 +14,7 @@ export default function App() {
   } = useChat();
 
   return (
-    <div className="h-screen flex flex-col bg-pcdc-bg">
+    <div className="h-screen flex flex-col" style={{ background: "transparent" }}>
       <Header onClear={clearMessages} messageCount={messages.length} />
       <ChatWindow
         messages={messages}

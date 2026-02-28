@@ -12,19 +12,24 @@ export default function ClarificationOptions({
   disabled,
 }: Props) {
   return (
-    <div className="mt-3 flex flex-wrap gap-2">
-      {options.map((opt, i) => (
-        <button
-          key={i}
-          disabled={disabled}
-          onClick={() => onSelect(opt)}
-          className="px-3 py-1.5 text-sm rounded-full border border-pcdc-teal text-pcdc-teal
-                     hover:bg-pcdc-teal hover:text-white transition-colors
-                     disabled:opacity-50 disabled:cursor-not-allowed"
-        >
-          {opt.label}
-        </button>
-      ))}
+    <div className="mt-3">
+      <p className="text-[10px] text-gray-400 uppercase tracking-wide font-medium mb-2 px-1">
+        Choose one to continue
+      </p>
+      <div className="flex flex-wrap gap-2">
+        {options.map((opt, i) => (
+          <button
+            key={i}
+            disabled={disabled}
+            onClick={() => onSelect(opt)}
+            className="px-4 py-2 text-sm rounded-md border border-slate-300 text-slate-700 bg-white
+                       transition-colors font-medium hover:bg-slate-100 hover:border-slate-400
+                       disabled:opacity-40 disabled:cursor-not-allowed"
+          >
+            {opt.label}
+          </button>
+        ))}
+      </div>
     </div>
   );
 }
