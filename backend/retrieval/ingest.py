@@ -208,11 +208,41 @@ def ingest_examples(csv_path: Path) -> int:
 
 
 def main() -> None:
+    import argparse
+
+    parser = argparse.ArgumentParser(description="Ingest schema and filter-set examples into ChromaDB")
+    parser.add_argument(
+        "--csv",
+        type=Path,
+        default=None,
+        help=(
+            "Path to the filter-set CSV to ingest. "
+            "Defaults to the path configured in config.py (full dataset). "
+            "Pass data/train.csv here to ingest only the training split."
+        ),
+    )
+    parser.add_argument(
+        "--skip-schema",
+        action="store_true",
+        help="Skip schema field ingestion (useful when only re-ingesting examples).",
+    )
+    parser.add_argument(
+        "--skip-examples",
+        action="store_true",
+        help="Skip example ingestion.",
+    )
+    args = parser.parse_args()
+
     settings = get_settings()
 
     gitops_path = settings.resolve_path(settings.processed_gitops_json)
     schema_path = settings.resolve_path(settings.processed_schema_json)
-    csv_path = settings.resolve_path(settings.filter_sets_csv)
+
+    # --csv overrides the default configured path
+    if args.csv is not None:
+        csv_path = Path(args.csv).resolve()
+    else:
+        csv_path = settings.resolve_path(settings.filter_sets_csv)
 
     print(f"Loading processed_gitops from: {gitops_path}")
     with open(gitops_path) as f:
@@ -224,16 +254,25 @@ def main() -> None:
 
     print(f"Loading filter sets CSV from: {csv_path}")
 
-    print("\n── Ingesting schema fields ─────────────────────")
-    n_schema = ingest_schema(processed_gitops, processed_schema)
-    print(f"   ✓ {n_schema} schema fields ingested into '{SCHEMA_COLLECTION}'")
+    if not args.skip_schema:
+        print("\n── Ingesting schema fields ─────────────────────")
+        n_schema = ingest_schema(processed_gitops, processed_schema)
+        print(f"   ✓ {n_schema} schema fields ingested into '{SCHEMA_COLLECTION}'")
+    else:
+        print("\n── Skipping schema field ingestion (--skip-schema) ─")
+        n_schema = 0
 
-    print("\n── Ingesting filter set examples ───────────────")
-    n_examples = ingest_examples(csv_path)
-    print(f"   ✓ {n_examples} examples ingested into '{EXAMPLE_COLLECTION}'")
+    if not args.skip_examples:
+        print("\n── Ingesting filter set examples ───────────────")
+        n_examples = ingest_examples(csv_path)
+        print(f"   ✓ {n_examples} examples ingested into '{EXAMPLE_COLLECTION}'")
+    else:
+        print("\n── Skipping example ingestion (--skip-examples) ─")
+        n_examples = 0
 
     print("\n── Done! ──────────────────────────────────────")
-    print(f"ChromaDB at {settings.chroma_url} now has {n_schema + n_examples} total documents.")
+    if n_schema + n_examples > 0:
+        print(f"ChromaDB at {settings.chroma_url} now has {n_schema + n_examples} total documents.")
 
 
 if __name__ == "__main__":
