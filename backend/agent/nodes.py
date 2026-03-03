@@ -25,9 +25,12 @@ from prompts.templates import (
     EXPLANATION_HUMAN,
     GENERAL_SYSTEM,
     GENERAL_HUMAN,
+    DOCS_SYSTEM,
+    DOCS_HUMAN,
 )
 from retrieval.schema_retriever import SchemaRetriever
 from retrieval.example_retriever import ExampleRetriever
+from retrieval.docs_retriever import DocsRetriever
 from validation.validator import get_validator
 
 logger = logging.getLogger(__name__)
@@ -35,6 +38,7 @@ logger = logging.getLogger(__name__)
 # Lazy singletons — initialised on first use
 _schema_retriever: SchemaRetriever | None = None
 _example_retriever: ExampleRetriever | None = None
+_docs_retriever: DocsRetriever | None = None
 
 
 def _get_schema_retriever() -> SchemaRetriever:
@@ -49,6 +53,13 @@ def _get_example_retriever() -> ExampleRetriever:
     if _example_retriever is None:
         _example_retriever = ExampleRetriever()
     return _example_retriever
+
+
+def _get_docs_retriever() -> DocsRetriever:
+    global _docs_retriever
+    if _docs_retriever is None:
+        _docs_retriever = DocsRetriever()
+    return _docs_retriever
 
 
 def _build_conversation_history(messages: list[dict], max_turns: int = 4) -> str:
@@ -353,11 +364,45 @@ def explain_filter(state: AgentState) -> dict[str, Any]:
 # ═══════════════════════════════════════════════════════════════════
 
 def general_response(state: AgentState) -> dict[str, Any]:
-    """Handle general / documentation queries."""
+    """Handle general conversation queries."""
     llm = get_llm(streaming=False)
     response = llm.invoke([
         SystemMessage(content=GENERAL_SYSTEM),
         HumanMessage(content=GENERAL_HUMAN.format(message=state["user_query"])),
+    ])
+
+    return {
+        "response_text": response.content.strip(),
+        "event_type": "token",
+        "filter_result": None,
+    }
+
+
+# ═══════════════════════════════════════════════════════════════════
+# Node 9: Documentation browser (data dictionary RAG)
+# ═══════════════════════════════════════════════════════════════════
+
+def documentation_response(state: AgentState) -> dict[str, Any]:
+    """Answer documentation questions using the PCDC data dictionary.
+
+    Retrieves the top-5 most relevant entries from the data-dictionary
+    ChromaDB collection and injects them into a documentation-specific
+    prompt so the LLM answers from authoritative sources, not guesses.
+    """
+    query = state["user_query"]
+    docs_ret = _get_docs_retriever()
+
+    # Retrieve relevant data dictionary entries
+    entries = docs_ret.retrieve(query, n_results=5)
+    docs_context = docs_ret.format_for_prompt(entries)
+
+    llm = get_llm(streaming=False)
+    response = llm.invoke([
+        SystemMessage(content=DOCS_SYSTEM),
+        HumanMessage(content=DOCS_HUMAN.format(
+            docs_context=docs_context,
+            message=query,
+        )),
     ])
 
     return {

@@ -18,6 +18,7 @@ from agent.nodes import (
     fix_filter,
     explain_filter,
     general_response,
+    documentation_response,
 )
 
 MAX_RETRIES = 3
@@ -31,7 +32,7 @@ def route_after_intent(state: AgentState) -> str:
     if intent in ("query_generation", "clarification_response"):
         return "retrieve_context"
     if intent == "documentation":
-        return "general_response"  # for now, same as general
+        return "documentation_response"
     return "general_response"
 
 
@@ -69,6 +70,7 @@ def build_agent_graph() -> StateGraph:
     builder.add_node("fix_filter", fix_filter)
     builder.add_node("explain_filter", explain_filter)
     builder.add_node("general_response", general_response)
+    builder.add_node("documentation_response", documentation_response)
 
     # Entry point
     builder.set_entry_point("classify_intent")
@@ -82,6 +84,7 @@ def build_agent_graph() -> StateGraph:
     builder.add_edge("fix_filter", "validate_filter")  # re-validate after fix
     builder.add_edge("explain_filter", END)
     builder.add_edge("general_response", END)
+    builder.add_edge("documentation_response", END)
 
     return builder.compile()
 

@@ -20,6 +20,7 @@ logger = logging.getLogger(__name__)
 
 SCHEMA_COLLECTION = "pcdc_schema_fields"
 EXAMPLE_COLLECTION = "pcdc_filter_examples"
+DOCS_COLLECTION = "pcdc_data_dictionary"
 
 
 class ChromaHTTPClient:
