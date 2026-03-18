@@ -36,6 +36,8 @@ export interface ComparisonResult {
   summary: string;
   filter_a: Record<string, unknown>;
   filter_b: Record<string, unknown>;
+  filter_a_name: string;
+  filter_b_name: string;
 }
 
 export interface ChatMessage {

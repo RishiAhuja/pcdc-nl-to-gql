@@ -287,6 +287,8 @@ async def compare_filters_api(request: CompareRequest):
         "diff_summary": summary,
         "filter_a": request.filter_a,
         "filter_b": request.filter_b,
+        "filter_a_name": request.names[0] if request.names and len(request.names) > 0 else "Filter A",
+        "filter_b_name": request.names[1] if request.names and len(request.names) > 1 else "Filter B",
     }
 
 

@@ -1,11 +1,12 @@
-import { Microscope, Trash2 } from "lucide-react";
+import { Microscope, Trash2, Bookmark } from "lucide-react";
 
 interface Props {
   onClear: () => void;
   messageCount: number;
+  onToggleSavedFilters: () => void;
 }
 
-export default function Header({ onClear, messageCount }: Props) {
+export default function Header({ onClear, messageCount, onToggleSavedFilters }: Props) {
   return (
     <header className="bg-white border-b border-slate-200 px-6 py-3.5 flex items-center justify-between">
       <div className="flex items-center gap-3">
@@ -23,6 +24,14 @@ export default function Header({ onClear, messageCount }: Props) {
       </div>
 
       <div className="flex items-center gap-3">
+        <button
+          onClick={onToggleSavedFilters}
+          title="Saved filters"
+          className="flex items-center gap-1.5 text-xs text-slate-600 hover:text-slate-900 transition-colors px-3 py-1.5 rounded-md hover:bg-slate-100 border border-transparent"
+        >
+          <Bookmark className="w-3.5 h-3.5" />
+          Saved
+        </button>
         {messageCount > 0 && (
           <button
             onClick={onClear}

@@ -4,6 +4,7 @@ import remarkGfm from "remark-gfm";
 import type { ChatMessage, ClarificationOption } from "../types";
 import FilterDisplay from "./FilterDisplay";
 import ClarificationOptions from "./ClarificationOptions";
+import ComparisonDisplay from "./ComparisonDisplay";
 
 interface Props {
   message: ChatMessage;
@@ -110,7 +111,10 @@ export default function MessageBubble({
         </div>
 
         {/* Filter result */}
-        {message.filter && <FilterDisplay filter={message.filter} />}
+        {message.filter && <FilterDisplay filter={message.filter} nlDescription={message.content} />}
+
+        {/* Comparison result */}
+        {message.comparison && <ComparisonDisplay comparison={message.comparison} />}
 
         {/* Clarification options */}
         {message.clarification && (

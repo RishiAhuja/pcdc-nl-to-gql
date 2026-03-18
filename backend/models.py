@@ -111,3 +111,5 @@ class ComparisonResult(BaseModel):
     summary: str
     filter_a: dict[str, Any]
     filter_b: dict[str, Any]
+    filter_a_name: str = "Filter A"
+    filter_b_name: str = "Filter B"

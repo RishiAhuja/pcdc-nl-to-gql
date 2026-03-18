@@ -1,9 +1,12 @@
 import { useState } from "react";
-import { Check, Copy, AlertTriangle, CheckCircle, Code2 } from "lucide-react";
+import { AlertTriangle, CheckCircle, Code2 } from "lucide-react";
 import type { FilterResult } from "../types";
+import ExportMenu from "./ExportMenu";
+import SaveFilterButton from "./SaveFilterButton";
 
 interface Props {
   filter: FilterResult;
+  nlDescription?: string;
 }
 
 // Simple JSON syntax highlighter — returns an array of <span> elements
@@ -27,15 +30,8 @@ function highlightJson(json: string): React.ReactNode[] {
   return nodes;
 }
 
-export default function FilterDisplay({ filter }: Props) {
-  const [copied, setCopied] = useState(false);
+export default function FilterDisplay({ filter, nlDescription }: Props) {
   const jsonStr = JSON.stringify(filter.filter, null, 2);
-
-  const handleCopy = async () => {
-    await navigator.clipboard.writeText(jsonStr);
-    setCopied(true);
-    setTimeout(() => setCopied(false), 2000);
-  };
 
   return (
     <div className="mt-3 rounded-xl border overflow-hidden shadow-card" style={{ borderColor: filter.isValid ? "#d1d5db" : "#e5e7eb" }}>
@@ -70,20 +66,8 @@ export default function FilterDisplay({ filter }: Props) {
               {filter.fieldsUsed.length} field{filter.fieldsUsed.length !== 1 ? "s" : ""}
             </span>
           )}
-          <button
-            onClick={handleCopy}
-            className={`flex items-center gap-1 text-xs transition-colors px-2 py-1 rounded-md ${
-              copied
-                ? "text-slate-700 bg-slate-200"
-                : "text-gray-500 hover:text-slate-900 hover:bg-white"
-            }`}
-          >
-            {copied ? (
-              <><Check className="w-3 h-3" /> Copied!</>
-            ) : (
-              <><Copy className="w-3 h-3" /> Copy JSON</>
-            )}
-          </button>
+          <SaveFilterButton filter={filter.filter} explanation={nlDescription} />
+          <ExportMenu filter={filter.filter} />
         </div>
       </div>
 

@@ -1,7 +1,7 @@
 import { useRef, useEffect } from "react";
 import type { ChatMessage, ClarificationOption } from "../types";
 import MessageBubble from "./MessageBubble";
-import { Microscope, Search, ShieldCheck, History } from "lucide-react";
+import { Microscope, Search, ShieldCheck, History, FileText, ArrowLeftRight, BookOpen } from "lucide-react";
 
 interface Props {
   messages: ChatMessage[];
@@ -14,6 +14,40 @@ const SUGGESTIONS = [
   { text: "Find relapsed neuroblastoma cases" },
   { text: "Patients with WBC count above 50" },
   { text: "Female patients with Down syndrome" },
+];
+
+const TEMPLATES = [
+  {
+    icon: Search,
+    category: "Filter",
+    examples: [
+      "All ___ patients who are ___",
+      "Patients diagnosed between ___ and ___",
+    ],
+  },
+  {
+    icon: BookOpen,
+    category: "Documentation",
+    examples: [
+      "What fields describe disease staging?",
+      "Explain the treatment response values",
+    ],
+  },
+  {
+    icon: ArrowLeftRight,
+    category: "Compare",
+    examples: [
+      "Compare my last two filters",
+      "How does this cohort differ from the previous one?",
+    ],
+  },
+  {
+    icon: FileText,
+    category: "Explain",
+    examples: [
+      "Paste a filter JSON to get a plain-English explanation",
+    ],
+  },
 ];
 
 const FEATURES = [
@@ -98,6 +132,44 @@ export default function ChatWindow({
                     {s.text}
                   </span>
                 </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Query Templates (F4) */}
+          <div className="w-full mt-6">
+            <div className="mb-3">
+              <span className="text-xs font-medium text-gray-500 uppercase tracking-wide">Query Templates</span>
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-2">
+              {TEMPLATES.map((t) => (
+                <div
+                  key={t.category}
+                  className="rounded-lg border border-gray-200 bg-white p-3 shadow-message"
+                >
+                  <div className="flex items-center gap-2 mb-2">
+                    <t.icon className="w-3.5 h-3.5 text-slate-600" />
+                    <span className="text-[11px] font-semibold text-slate-700 uppercase tracking-wide">
+                      {t.category}
+                    </span>
+                  </div>
+                  <div className="space-y-1">
+                    {t.examples.map((ex) => (
+                      <button
+                        key={ex}
+                        className="block w-full text-left text-xs text-gray-500 hover:text-slate-900 
+                                   hover:bg-slate-50 px-2 py-1.5 rounded transition-colors"
+                        onClick={() => {
+                          window.dispatchEvent(
+                            new CustomEvent("chatbot:suggest", { detail: ex })
+                          );
+                        }}
+                      >
+                        {ex}
+                      </button>
+                    ))}
+                  </div>
+                </div>
               ))}
             </div>
           </div>

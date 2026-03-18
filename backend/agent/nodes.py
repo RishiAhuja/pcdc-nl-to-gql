@@ -549,6 +549,8 @@ def compare_filters_node(state: AgentState) -> dict[str, Any]:
         "summary": response.content.strip(),
         "filter_a": filter_a,
         "filter_b": filter_b,
+        "filter_a_name": "Cohort A (earlier)",
+        "filter_b_name": "Cohort B (later)",
     }
 
     return {
