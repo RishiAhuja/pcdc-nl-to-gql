@@ -16,7 +16,7 @@ class AgentState(TypedDict, total=False):
     conversation_id: str
 
     # Intent
-    intent: str                          # query_generation | documentation | clarification_response | general
+    intent: str                          # query_generation | documentation | clarification_response | general | explain_filter | compare_filters
 
     # Retrieval
     schema_context: str                  # formatted schema retriever output
@@ -44,3 +44,9 @@ class AgentState(TypedDict, total=False):
     response_text: str                   # final text to stream to user
     filter_result: dict[str, Any] | None # final filter JSON (if generated)
     event_type: str                      # what kind of response this is
+
+    # Reverse explanation (F5)
+    pasted_filter: dict[str, Any] | None # filter JSON pasted by user for explanation
+
+    # Comparison (F2)
+    comparison_result: dict[str, Any] | None  # cohort comparison output

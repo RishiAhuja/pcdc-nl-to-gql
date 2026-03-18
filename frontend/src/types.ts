@@ -15,6 +15,29 @@ export interface FilterResult {
   fieldsUsed: string[];
 }
 
+export interface SavedFilter {
+  id: string;
+  name: string;
+  filter_json: Record<string, unknown>;
+  nl_description: string;
+  fields_used: string[];
+  created_at: string;
+}
+
+export interface FieldDiff {
+  field: string;
+  status: "added" | "removed" | "changed";
+  value_a: unknown;
+  value_b: unknown;
+}
+
+export interface ComparisonResult {
+  diffs: FieldDiff[];
+  summary: string;
+  filter_a: Record<string, unknown>;
+  filter_b: Record<string, unknown>;
+}
+
 export interface ChatMessage {
   id: string;
   role: MessageRole;
@@ -30,6 +53,9 @@ export interface ChatMessage {
     options: ClarificationOption[];
   };
 
+  /** Set when the assistant returns a comparison */
+  comparison?: ComparisonResult;
+
   /** True while the assistant is still generating */
   isLoading?: boolean;
 
@@ -43,4 +69,5 @@ export type SSEEventType =
   | "clarification"
   | "error"
   | "done"
-  | "status";
+  | "status"
+  | "comparison";

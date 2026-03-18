@@ -27,6 +27,10 @@ from prompts.templates import (
     GENERAL_HUMAN,
     DOCS_SYSTEM,
     DOCS_HUMAN,
+    REVERSE_EXPLAIN_SYSTEM,
+    REVERSE_EXPLAIN_HUMAN,
+    COMPARISON_SYSTEM,
+    COMPARISON_HUMAN,
 )
 from retrieval.schema_retriever import SchemaRetriever
 from retrieval.example_retriever import ExampleRetriever
@@ -106,13 +110,26 @@ def classify_intent(state: AgentState) -> dict[str, Any]:
     if state.get("needs_clarification") and len(user_msg.split()) <= 8:
         return {"intent": "clarification_response"}
 
+    # Heuristic: detect pasted JSON filter (F5 — reverse explanation)
+    stripped = user_msg.strip()
+    if stripped.startswith("{") and stripped.endswith("}"):
+        try:
+            parsed = json.loads(stripped)
+            # Check if it looks like a Guppy filter (has AND/OR/IN/nested keys)
+            flat = json.dumps(parsed).lower()
+            if any(k in flat for k in ['"and"', '"or"', '"in"', '"nested"', '"gte"', '"lte"']):
+                return {"intent": "explain_filter", "pasted_filter": parsed}
+        except json.JSONDecodeError:
+            pass
+
     response = llm.invoke([
         SystemMessage(content=INTENT_SYSTEM),
         HumanMessage(content=INTENT_HUMAN.format(message=user_msg)),
     ])
 
     intent = response.content.strip().lower().replace(" ", "_")
-    valid_intents = {"query_generation", "documentation", "clarification_response", "general"}
+    valid_intents = {"query_generation", "documentation", "clarification_response",
+                     "general", "explain_filter", "compare_filters"}
     if intent not in valid_intents:
         intent = "query_generation"  # default assumption
 
@@ -408,5 +425,135 @@ def documentation_response(state: AgentState) -> dict[str, Any]:
     return {
         "response_text": response.content.strip(),
         "event_type": "token",
+        "filter_result": None,
+    }
+
+
+# ═══════════════════════════════════════════════════════════════════
+# Node: Reverse Explanation (F5) — explain a pasted filter
+# ═══════════════════════════════════════════════════════════════════
+
+def reverse_explain_filter(state: AgentState) -> dict[str, Any]:
+    """Take a pasted Guppy filter JSON and explain it in plain English."""
+    pasted = state.get("pasted_filter")
+    user_msg = state["user_query"]
+
+    # If no pre-parsed filter, try extracting from the message text
+    if not pasted:
+        stripped = user_msg.strip()
+        # Try to find JSON in the message
+        start = stripped.find("{")
+        end = stripped.rfind("}") + 1
+        if start >= 0 and end > start:
+            try:
+                pasted = json.loads(stripped[start:end])
+            except json.JSONDecodeError:
+                return {
+                    "response_text": "I couldn't parse the filter JSON you provided. "
+                                     "Please paste a valid Guppy filter JSON object.",
+                    "event_type": "token",
+                    "filter_result": None,
+                }
+
+    if not pasted:
+        return {
+            "response_text": "Please paste a Guppy filter JSON object and I'll explain what it does.",
+            "event_type": "token",
+            "filter_result": None,
+        }
+
+    # Validate the pasted filter
+    validator = get_validator()
+    result = validator.validate(pasted)
+
+    validation_notes = ""
+    if result.errors:
+        validation_notes = "⚠️ Validation issues found:\n" + "\n".join(f"- {e}" for e in result.errors)
+    elif result.warnings:
+        validation_notes = "Note: " + "; ".join(result.warnings)
+
+    filter_str = json.dumps(pasted, indent=2)
+
+    llm = get_llm(streaming=False)
+    response = llm.invoke([
+        SystemMessage(content=REVERSE_EXPLAIN_SYSTEM),
+        HumanMessage(content=REVERSE_EXPLAIN_HUMAN.format(
+            filter_json=filter_str,
+            validation_notes=validation_notes,
+        )),
+    ])
+
+    return {
+        "response_text": response.content.strip(),
+        "filter_result": pasted,  # echo the filter back so frontend can display it
+        "event_type": "filter_json",
+        "is_valid": result.is_valid,
+        "validation_errors": result.errors,
+        "validation_warnings": result.warnings,
+        "fields_used": list(set(result.fields_used)),
+    }
+
+
+# ═══════════════════════════════════════════════════════════════════
+# Node: Cohort Comparison (F2) — compare two filters
+# ═══════════════════════════════════════════════════════════════════
+
+def compare_filters_node(state: AgentState) -> dict[str, Any]:
+    """Compare two filter sets from conversation history or user input."""
+    from utils.filter_utils import diff_filters, format_diff_summary
+
+    user_msg = state["user_query"]
+    history = state.get("messages", [])
+
+    # Extract two most recent filters from conversation history
+    filters_found: list[dict[str, Any]] = []
+    for msg in reversed(history):
+        filter_str = msg.get("_filter")
+        if filter_str:
+            try:
+                filters_found.append(json.loads(filter_str))
+            except (json.JSONDecodeError, TypeError):
+                pass
+        if len(filters_found) >= 2:
+            break
+
+    if len(filters_found) < 2:
+        return {
+            "response_text": "I need at least two generated filters in the conversation to compare. "
+                             "Please generate two different cohort queries first, then ask me to compare them.",
+            "event_type": "token",
+            "filter_result": None,
+        }
+
+    # filters_found is in reverse order (most recent first)
+    filter_a = filters_found[1]  # older
+    filter_b = filters_found[0]  # newer
+
+    diffs = diff_filters(filter_a, filter_b)
+    diff_summary = format_diff_summary(diffs)
+
+    llm = get_llm(streaming=False)
+    response = llm.invoke([
+        SystemMessage(content=COMPARISON_SYSTEM),
+        HumanMessage(content=COMPARISON_HUMAN.format(
+            name_a="Cohort A (earlier)",
+            name_b="Cohort B (later)",
+            filter_a=json.dumps(filter_a, indent=2),
+            filter_b=json.dumps(filter_b, indent=2),
+            diff_summary=diff_summary,
+        )),
+    ])
+
+    comparison = {
+        "diffs": diffs,
+        "summary": response.content.strip(),
+        "filter_a": filter_a,
+        "filter_b": filter_b,
+    }
+
+    return {
+        "response_text": response.content.strip(),
+        "comparison_result": comparison,
+        "event_type": "comparison",
         "filter_result": None,
     }

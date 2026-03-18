@@ -26,6 +26,7 @@ class EventType(str, Enum):
     ERROR = "error"
     DONE = "done"
     STATUS = "status"            # intermediate status updates
+    COMPARISON = "comparison"    # cohort comparison result
 
 
 # ── Request models ───────────────────────────────────────────────
@@ -64,3 +65,49 @@ class FilterResult(BaseModel):
 class SSEEvent(BaseModel):
     event: EventType
     data: Any
+
+
+# ── Saved filters ────────────────────────────────────────────────
+
+class SaveFilterRequest(BaseModel):
+    name: str = Field(..., min_length=1, max_length=200)
+    filter_json: dict[str, Any]
+    nl_description: str = ""
+    conversation_id: str | None = None
+
+
+class SavedFilter(BaseModel):
+    id: str
+    name: str
+    filter_json: dict[str, Any]
+    nl_description: str
+    fields_used: list[str] = Field(default_factory=list)
+    created_at: str  # ISO 8601
+
+
+class ExportFormat(str, Enum):
+    JSON = "json"
+    GRAPHQL = "graphql"
+
+
+# ── Cohort comparison ────────────────────────────────────────────
+
+class CompareRequest(BaseModel):
+    filter_a: dict[str, Any]
+    filter_b: dict[str, Any]
+    name_a: str = "Cohort A"
+    name_b: str = "Cohort B"
+
+
+class FieldDiff(BaseModel):
+    field: str
+    status: str  # "added" | "removed" | "changed"
+    value_a: Any | None = None
+    value_b: Any | None = None
+
+
+class ComparisonResult(BaseModel):
+    diffs: list[FieldDiff]
+    summary: str
+    filter_a: dict[str, Any]
+    filter_b: dict[str, Any]

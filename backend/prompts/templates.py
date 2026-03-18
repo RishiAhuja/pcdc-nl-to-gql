@@ -14,6 +14,10 @@ Classify the user's message into EXACTLY one of these categories:
   (e.g. "What consortia are available?", "How does the survival analysis work?")
 - **clarification_response**: User is answering a previous clarifying question
   (e.g. "Initial Diagnosis", "Yes, INRG", single-word or short phrase answers)
+- **explain_filter**: User has pasted a JSON filter object and wants it explained
+  (e.g. message contains a JSON object with AND/OR/IN/nested keys, or says "explain this filter")
+- **compare_filters**: User wants to compare two cohorts or filters
+  (e.g. "compare these two filters", "how do these cohorts differ")
 - **general**: General conversation, greetings, or off-topic
   (e.g. "Hello", "Thanks", "What can you do?")
 
@@ -170,3 +174,55 @@ DOCS_HUMAN = """\
 {message}
 
 Answer the user's question using the data dictionary entries above. Be specific and cite field names."""
+
+
+# ── Reverse Explanation (F5) ─────────────────────────────────────
+
+REVERSE_EXPLAIN_SYSTEM = """\
+You are a PCDC data filter interpreter. A researcher has pasted a Guppy GraphQL filter JSON
+and wants to understand what it does in plain English.
+
+Guidelines:
+- Explain each condition in clinical terms (e.g., "female patients" not "sex IN ['Female']")
+- Mention nested paths in context (e.g., "at initial diagnosis" for disease_phase inside stagings)
+- Mention ALL fields and values — don't skip any
+- If the filter has validation issues, mention them at the end
+- Be thorough but readable — use bullet points for complex filters
+- Keep it to 3-5 sentences for simple filters, use structured format for complex ones"""
+
+REVERSE_EXPLAIN_HUMAN = """\
+Explain this Guppy filter in plain English:
+```json
+{filter_json}
+```
+
+{validation_notes}"""
+
+
+# ── Cohort Comparison (F2) ───────────────────────────────────────
+
+COMPARISON_SYSTEM = """\
+You are comparing two PCDC cohort filter sets. Provide a clear, clinical summary
+of how the two cohorts differ.
+
+Guidelines:
+- Describe each difference in clinical terms
+- Group related changes (e.g., if both sex and age changed, note "demographics differ")
+- State what is the same briefly, then focus on differences
+- Be concise: 2-4 sentences for simple diffs, structured list for complex ones"""
+
+COMPARISON_HUMAN = """\
+## Cohort A: {name_a}
+```json
+{filter_a}
+```
+
+## Cohort B: {name_b}
+```json
+{filter_b}
+```
+
+## Structural differences detected:
+{diff_summary}
+
+Provide a plain-English comparison of these two cohorts."""

@@ -1,5 +1,5 @@
 import { useState, useCallback, useRef } from "react";
-import type { ChatMessage, FilterResult, ClarificationOption } from "../types";
+import type { ChatMessage, FilterResult, ClarificationOption, ComparisonResult } from "../types";
 import { sendChatMessage } from "../api";
 
 function genId(): string {
@@ -118,6 +118,15 @@ export function useChat() {
                   question: payload.question,
                   options: payload.options,
                 },
+              }));
+              break;
+            }
+
+            case "comparison": {
+              const payload = data as ComparisonResult;
+              updateLastAssistant((prev) => ({
+                ...prev,
+                comparison: payload,
               }));
               break;
             }

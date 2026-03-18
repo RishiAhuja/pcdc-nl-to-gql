@@ -2,6 +2,8 @@
  * SSE-based API client for the PCDC chatbot backend.
  */
 
+import type { SavedFilter } from "./types";
+
 const API_BASE = "/chat";
 
 export interface ChatRequestBody {
@@ -84,4 +86,63 @@ export function sendChatMessage(
   })();
 
   return controller;
+}
+
+
+// ── Saved Filters API (F1) ──────────────────────────────────────
+
+export async function saveFilter(body: {
+  name: string;
+  filter_json: Record<string, unknown>;
+  nl_description?: string;
+  conversation_id?: string;
+}): Promise<SavedFilter> {
+  const res = await fetch("/filters/save", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body),
+  });
+  if (!res.ok) throw new Error(`Save failed: ${res.status}`);
+  return res.json();
+}
+
+export async function listFilters(): Promise<SavedFilter[]> {
+  const res = await fetch("/filters");
+  if (!res.ok) throw new Error(`List failed: ${res.status}`);
+  const data = await res.json();
+  return data.filters;
+}
+
+export async function deleteFilter(id: string): Promise<void> {
+  const res = await fetch(`/filters/${id}`, { method: "DELETE" });
+  if (!res.ok) throw new Error(`Delete failed: ${res.status}`);
+}
+
+
+// ── Export API (F3) ─────────────────────────────────────────────
+
+export async function exportAsGraphQL(
+  filter: Record<string, unknown>
+): Promise<string> {
+  const res = await fetch("/filters/export/graphql", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ filter }),
+  });
+  if (!res.ok) throw new Error(`Export failed: ${res.status}`);
+  const data = await res.json();
+  return data.graphql;
+}
+
+export async function exportAsAggregation(
+  filter: Record<string, unknown>
+): Promise<string> {
+  const res = await fetch("/filters/export/aggregation", {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify({ filter }),
+  });
+  if (!res.ok) throw new Error(`Export failed: ${res.status}`);
+  const data = await res.json();
+  return data.graphql;
 }

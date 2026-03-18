@@ -24,9 +24,18 @@ from models import (
     FilterResult,
     ClarificationPayload,
     ClarificationOption,
+    SaveFilterRequest,
+    SavedFilter,
+    CompareRequest,
 )
 from agent.graph import agent_graph
 from agent.state import AgentState
+from utils.filter_utils import (
+    diff_filters,
+    format_diff_summary,
+    export_as_graphql,
+    export_as_aggregation,
+)
 
 logging.basicConfig(level=logging.INFO)
 logger = logging.getLogger(__name__)
@@ -49,6 +58,9 @@ app.add_middleware(
 
 # ── In-memory conversation store (replace with Redis for prod) ───
 _conversations: dict[str, list[dict]] = {}
+
+# ── In-memory saved filters (replace with PostgreSQL for prod) ───
+_saved_filters: dict[str, dict] = {}  # id → filter data
 
 
 def _get_history(conv_id: str) -> list[dict]:
@@ -153,9 +165,14 @@ async def chat(request: ChatRequest):
                 yield _sse_event("filter_json", filter_payload)
 
             else:
-                # General text response
+                # General text response (or comparison)
                 history.append({"role": "assistant", "content": response_text})
-                yield _sse_event("token", {"text": response_text})
+
+                if event_type == "comparison" and final_state.get("comparison_result"):
+                    yield _sse_event("token", {"text": response_text})
+                    yield _sse_event("comparison", final_state["comparison_result"])
+                else:
+                    yield _sse_event("token", {"text": response_text})
 
             yield _sse_event("done", {"conversation_id": conv_id})
 
@@ -186,6 +203,112 @@ async def clear_conversation(conv_id: str):
     """Clear a conversation."""
     _conversations.pop(conv_id, None)
     return {"status": "cleared"}
+
+
+# ── Saved Filters (F1) ──────────────────────────────────────────
+
+@app.post("/filters/save")
+async def save_filter(request: SaveFilterRequest):
+    """Save a generated filter with a name."""
+    from datetime import datetime, timezone
+
+    filter_id = str(uuid.uuid4())[:8]
+    saved = {
+        "id": filter_id,
+        "name": request.name,
+        "filter_json": request.filter_json,
+        "nl_description": request.nl_description,
+        "fields_used": list(_extract_fields_from_filter(request.filter_json)),
+        "created_at": datetime.now(timezone.utc).isoformat(),
+        "conversation_id": request.conversation_id,
+    }
+    _saved_filters[filter_id] = saved
+    return saved
+
+
+@app.get("/filters")
+async def list_filters():
+    """List all saved filters, newest first."""
+    filters = sorted(
+        _saved_filters.values(),
+        key=lambda f: f["created_at"],
+        reverse=True,
+    )
+    return {"filters": filters}
+
+
+@app.get("/filters/{filter_id}")
+async def get_filter(filter_id: str):
+    """Get a saved filter by ID."""
+    f = _saved_filters.get(filter_id)
+    if f is None:
+        raise HTTPException(404, "Filter not found")
+    return f
+
+
+@app.delete("/filters/{filter_id}")
+async def delete_filter(filter_id: str):
+    """Delete a saved filter."""
+    if filter_id not in _saved_filters:
+        raise HTTPException(404, "Filter not found")
+    _saved_filters.pop(filter_id)
+    return {"status": "deleted"}
+
+
+# ── Filter Export (F3) ───────────────────────────────────────────
+
+@app.post("/filters/export/graphql")
+async def export_filter_graphql(body: dict):
+    """Export a filter as a full Guppy GraphQL query string."""
+    filter_json = body.get("filter")
+    if not filter_json:
+        raise HTTPException(400, "Missing 'filter' key in request body")
+    return {"graphql": export_as_graphql(filter_json)}
+
+
+@app.post("/filters/export/aggregation")
+async def export_filter_aggregation(body: dict):
+    """Export a filter as a Guppy aggregation query."""
+    filter_json = body.get("filter")
+    if not filter_json:
+        raise HTTPException(400, "Missing 'filter' key in request body")
+    return {"graphql": export_as_aggregation(filter_json)}
+
+
+# ── Filter Comparison (F2 — direct API) ──────────────────────────
+
+@app.post("/filters/compare")
+async def compare_filters_api(request: CompareRequest):
+    """Compare two filters directly (non-chat API)."""
+    diffs = diff_filters(request.filter_a, request.filter_b)
+    summary = format_diff_summary(diffs)
+    return {
+        "diffs": diffs,
+        "diff_summary": summary,
+        "filter_a": request.filter_a,
+        "filter_b": request.filter_b,
+    }
+
+
+# ── Helpers ──────────────────────────────────────────────────────
+
+def _extract_fields_from_filter(node: dict, fields: set | None = None) -> set:
+    """Recursively extract field names from a Guppy filter."""
+    if fields is None:
+        fields = set()
+    if not isinstance(node, dict):
+        return fields
+    for key, val in node.items():
+        if key in ("AND", "OR") and isinstance(val, list):
+            for item in val:
+                _extract_fields_from_filter(item, fields)
+        elif key == "nested" and isinstance(val, dict):
+            for sub in val.get("AND", val.get("OR", [])):
+                if isinstance(sub, (dict, list)):
+                    _extract_fields_from_filter(sub if isinstance(sub, dict) else {}, fields)
+        elif key in ("IN", "GTE", "LTE", "GT", "LT") and isinstance(val, dict):
+            fields.update(val.keys())
+    return fields
 
 
 if __name__ == "__main__":
