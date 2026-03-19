@@ -1,0 +1,24 @@
+procs:
+  # FastAPI backend (activates project venv)
+  backend:
+    shell: "bash -c 'source ./venv/bin/activate && uvicorn main:app --reload --port 8000'"
+    cwd: "./backend"
+    autostart: true
+    autorestart: true
+    stop: "SIGTERM"
+
+  # React / Vite frontend
+  frontend:
+    shell: "npm run dev"
+    cwd: "./frontend"
+    autostart: true
+    autorestart: true
+    stop: "SIGTERM"
+
+  # ChromaDB — manages the existing pcdc_chromadb container
+  chromadb:
+    shell: "docker start -a pcdc_chromadb"
+    cwd: "."
+    autostart: true
+    autorestart: false
+    stop: "SIGTERM"

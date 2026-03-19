@@ -24,3 +24,4 @@ Thumbs.db
 
 # ChromaDB volume
 chroma_data/
+mprocs.log
