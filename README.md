@@ -27,37 +27,116 @@ Describe a patient cohort in plain English. Get a schema-correct, deterministica
 
 ---
 
+## Overview
+
+The PCDC Cohort Discovery Chatbot translates plain-English clinical queries into schema-valid [Guppy](https://github.com/uc-cdis/guppy) GraphQL filter JSON. It is powered by a **10-node LangGraph agentic pipeline** backed by **ChromaDB retrieval** over the full PCDC schema and 1,078 annotated training examples.
+
+**Key capabilities:**
+
+| Feature | Details |
+|:--|:--|
+| Filter generation | Translates free-form queries into valid nested Guppy JSON |
+| Self-healing validation | Catches invalid fields/enums and auto-corrects via targeted retry |
+| Clarification loop | Detects staging ambiguity and asks before generating |
+| Cohort comparison | Diffs two saved filters field-by-field with a colour-coded view |
+| Saved filters | Name, persist, reload, and export any generated filter |
+| Export menu | Copy as JSON, GraphQL, aggregation query, or download `.json` |
+| Query templates | One-click landing-page prompts for common cohort patterns |
+| Reverse explanation | Paste a raw filter JSON; get a plain-English description back |
+| Multi-provider LLM | OpenAI · Anthropic · Google — swap with a single env var |
+
+---
+
 ## Screenshots
+
+### Filter Generation
 
 <table>
   <tr>
     <td align="center" width="50%">
-      <img src="assets/screenshots/landing.png" alt="Landing page" width="100%"/>
-      <br/><sub><b>Clean entry point with example prompts</b></sub>
+      <img src="assets/screenshots/landing-page-new.png" alt="Landing page" width="100%"/>
+      <br/><sub><b>Clean entry point with query templates</b></sub>
     </td>
     <td align="center" width="50%">
       <img src="assets/screenshots/chat-main.png" alt="Filter generation" width="100%"/>
-      <br/><sub><b>Filter generation with syntax-highlighted JSON</b></sub>
+      <br/><sub><b>Schema-correct Guppy filter with highlighted JSON</b></sub>
     </td>
   </tr>
   <tr>
+    <td align="center" colspan="2">
+      <img src="assets/screenshots/natural-lang-1.png" alt="Natural language query" width="80%"/>
+      <br/><sub><b>Complex multi-condition cohort from a single sentence</b></sub>
+    </td>
+  </tr>
+</table>
+
+### Self-Healing Validation
+
+<table>
+  <tr>
     <td align="center" width="50%">
+      <img src="assets/screenshots/fake-field-showcase.png" alt="Invalid field detected" width="100%"/>
+      <br/><sub><b>Validator catches hallucinated field names before they reach Guppy</b></sub>
+    </td>
+    <td align="center" width="50%">
+      <img src="assets/screenshots/validation-fix.png" alt="Self-healing correction" width="100%"/>
+      <br/><sub><b>LLM self-corrects with targeted fix prompt — zero user intervention</b></sub>
+    </td>
+  </tr>
+</table>
+
+### Clarification Flow
+
+<table>
+  <tr>
+    <td align="center" width="60%">
       <img src="assets/screenshots/clarification.png" alt="Clarification flow" width="100%"/>
-      <br/><sub><b>One-click staging disambiguation</b></sub>
+      <br/><sub><b>Staging ambiguity detected — one-click disambiguation before generation</b></sub>
     </td>
-    <td align="center" width="50%">
-      <img src="assets/screenshots/validation-fix.png" alt="Self-healing validation" width="100%"/>
-      <br/><sub><b>Self-healing validator auto-corrects field errors</b></sub>
+    <td align="center" width="40%">
+      <img src="assets/screenshots/conversation-context.png" alt="Conversation context" width="100%"/>
+      <br/><sub><b>Multi-turn refinement — context preserved across follow-up messages</b></sub>
     </td>
   </tr>
+</table>
+
+### Saved Filters & Export
+
+<table>
   <tr>
     <td align="center" width="50%">
-      <img src="assets/screenshots/conversation-context.png" alt="Conversation context" width="100%"/>
-      <br/><sub><b>Multi-turn refinement across follow-up messages</b></sub>
+      <img src="assets/screenshots/save-cohorts.png" alt="Saved filters sidebar" width="100%"/>
+      <br/><sub><b>Name and persist any filter — reload or delete from the sidebar</b></sub>
     </td>
     <td align="center" width="50%">
+      <img src="assets/screenshots/export-button.png" alt="Export menu" width="100%"/>
+      <br/><sub><b>Export as JSON, GraphQL query, aggregation query, or .json download</b></sub>
+    </td>
+  </tr>
+</table>
+
+### Cohort Comparison
+
+<table>
+  <tr>
+    <td align="center" width="50%">
+      <img src="assets/screenshots/comparison-1.png" alt="Cohort comparison diff" width="100%"/>
+      <br/><sub><b>Field-by-field diff between two saved cohorts</b></sub>
+    </td>
+    <td align="center" width="50%">
+      <img src="assets/screenshots/comparison-2.png" alt="Comparison detail" width="100%"/>
+      <br/><sub><b>Colour-coded view — green added · red removed · amber changed</b></sub>
+    </td>
+  </tr>
+</table>
+
+### General Q&A
+
+<table>
+  <tr>
+    <td align="center" width="60%">
       <img src="assets/screenshots/general-response.png" alt="General response" width="100%"/>
-      <br/><sub><b>General Q&A about the PCDC data model</b></sub>
+      <br/><sub><b>Schema and data model questions answered from ChromaDB context</b></sub>
     </td>
   </tr>
 </table>
@@ -85,18 +164,18 @@ flowchart TD
     N7 --> END
 ```
 
-### Architecture
+### System Architecture
 
 ```mermaid
 flowchart TD
     User(["User"])
 
     subgraph FE["React Frontend — Vite · TypeScript · Tailwind"]
-        UI["ChatWindow · FilterDisplay · ClarificationOptions"]
+        UI["ChatWindow · FilterDisplay · ExportMenu\nSavedFiltersSidebar · ComparisonDisplay · ClarificationOptions"]
     end
 
     subgraph BE["FastAPI Backend"]
-        subgraph LG["LangGraph Agent Pipeline"]
+        subgraph LG["LangGraph Agent — 10 nodes"]
             A["classify_intent"]
             B["retrieve_context"]
             C["check_clarity"]
@@ -105,10 +184,12 @@ flowchart TD
             F["fix_filter"]
             G["explain_filter"]
             H["general_response"]
+            I["reverse_explain"]
+            J["compare_filters"]
         end
     end
 
-    CHROMA[("ChromaDB")]
+    CHROMA[("ChromaDB\nschema + 1,078 examples")]
     LLM["LLM Provider\nOpenAI · Anthropic · Google"]
 
     User -- "natural language query" --> FE
@@ -119,11 +200,13 @@ flowchart TD
     C -- "clear" --> D --> E
     E -- "valid" --> G
     E -- "invalid" --> F --> E
+    A -- "compare" --> J
+    A -- "explain" --> I
 
     B <-.-> CHROMA
-    A & C & D & F <-.-> LLM
+    A & C & D & F & I & J <-.-> LLM
 
-    G & H -- "SSE stream" --> FE --> User
+    G & H & I & J -- "SSE stream" --> FE --> User
 ```
 
 ---
@@ -196,6 +279,8 @@ npm install
 npm run dev     # → http://localhost:5173
 ```
 
+> **Tip — run everything at once:** If you have [mprocs](https://github.com/pvolok/mprocs) installed, `mprocs` from the `chatbot/` directory starts all three services with split-pane output.
+
 ---
 
 ## Configuration
@@ -234,63 +319,6 @@ LLM_MODEL=gpt-4o
 
 ---
 
-## Project Structure
-
-```
-chatbot/
-├── .env.example
-├── docker-compose.yml
-├── assets/
-│   ├── logo/
-│   └── screenshots/
-├── backend/
-│   ├── main.py                     # FastAPI app + SSE endpoints
-│   ├── config.py                   # Pydantic settings
-│   ├── models.py                   # Request / response models
-│   ├── requirements.txt
-│   ├── agent/
-│   │   ├── state.py                # LangGraph TypedDict state
-│   │   ├── nodes.py                # All 8 agent node functions
-│   │   ├── graph.py                # Pipeline assembly + routing
-│   │   └── llm.py                  # Multi-provider LLM factory
-│   ├── retrieval/
-│   │   ├── ingest.py               # ChromaDB ingestion (run once)
-│   │   ├── client.py               # ChromaDB client + embeddings
-│   │   ├── schema_retriever.py     # Schema field retrieval
-│   │   └── example_retriever.py    # Few-shot example retrieval
-│   ├── validation/
-│   │   └── validator.py            # Schema validator + field suggestions
-│   ├── prompts/
-│   │   └── templates.py            # All LLM prompt templates
-│   ├── data/
-│   │   ├── train.csv               # 1,078 training examples
-│   │   └── test.csv                # 270 held-out test examples
-│   └── scripts/
-│       ├── evaluate.py             # Evaluation harness (F1 / precision / recall)
-│       ├── analyse_results.py      # Deep-dive breakdown of a results file
-│       ├── preflight.py            # Dry-run environment sanity check
-│       └── create_split.py         # Stratified train / test split
-└── frontend/
-    ├── package.json
-    ├── vite.config.ts
-    ├── tailwind.config.js
-    └── src/
-        ├── App.tsx
-        ├── api.ts                  # SSE client
-        ├── types.ts
-        ├── hooks/
-        │   └── useChat.ts          # Chat state + SSE management
-        └── components/
-            ├── Header.tsx
-            ├── ChatWindow.tsx
-            ├── MessageBubble.tsx
-            ├── FilterDisplay.tsx
-            ├── ClarificationOptions.tsx
-            └── InputBar.tsx
-```
-
----
-
 ## API Reference
 
 ### `POST /chat`
@@ -314,6 +342,7 @@ Send a message; returns a **Server-Sent Events stream**.
 | `token` | `{"text": "Here is the filter…"}` | Streamed explanation text |
 | `filter_json` | `{"filter": {…}, "is_valid": true, "explanation": "…"}` | Final validated filter |
 | `clarification` | `{"question": "…", "options": ["…"]}` | Disambiguation required |
+| `comparison` | `{"differences": […], "summary": "…"}` | Cohort comparison result |
 | `error` | `{"text": "…"}` | Unexpected error |
 | `done` | `{"conversation_id": "…"}` | Stream complete |
 
@@ -325,6 +354,12 @@ Retrieve the full message history for a conversation.
 
 ### `DELETE /conversations/{id}`
 Delete a conversation from the session store.
+
+### `POST /filters/compare`
+Compare two Guppy filter objects field-by-field. Returns a structured diff with added, removed, and changed fields.
+
+### `POST /filters/save` · `GET /filters` · `DELETE /filters/{id}`
+CRUD endpoints for saved filters. Filters are stored server-side and associated with a conversation ID.
 
 ---
 
